@@ -17,7 +17,7 @@ use Date::Parse;
 
 use FindBin qw($RealBin $Script);
 
-my $IS_INTERACTIVE = -t STDIN && (-t STDOUT || !(-f STDOUT || -c STDOUT || -p STDOUT)) ;
+#my $IS_INTERACTIVE = -t STDIN && (-t STDOUT || !(-f STDOUT || -c STDOUT || -p STDOUT)) ;
 
 BEGIN {
     # probably would make the args mutually exclusive in a real util
@@ -86,11 +86,8 @@ if( $::opt{'top_language'} ){
 
     for( @top[0..2] ){ 
         next unless $_;
-        if( $IS_INTERACTIVE ) {
-            printf "%s %.1f%%\n", $_, ($stats{$_} / $totalsize * 100);
-        }else{
-            say;
-        }
+        #printf "%s %.1f%%\n", $_, ($stats{$_} / $totalsize * 100);
+        say;
     }
 }
 
@@ -122,6 +119,14 @@ if( $::opt{'top_starred'} ){
     }
 }
 
+if( $::opt{'compare_repos'} ){
+    Dump GET_all('/user/repos');
+    my @user_repos = map {$_->{'full_name'}} GET_all('/user/repos');
+    my %other_repos = map {$_->{'full_name'}, 1} GET_all('/users/', $::opt{'compare_repos'}, '/repos');
+    my @common = grep {exists $other_repos{$_}} @user_repos;
+    say for @common;
+}
+
 #checkResponse($res);
 
 sub GET {
@@ -140,7 +145,7 @@ sub GET_all {
     my $page;
 
     while( my $res = GET($path, $sep, 'per_page=100', $page++ ? "&page=$page" : "" )){
-        ##### page: $page
+        #### got page: $page
         push @all, $res->@*;
         last unless ($cl->responseHeader('Link')//'') =~ /rel="next"/;
     }
