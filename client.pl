@@ -13,6 +13,7 @@ use List::Util qw(pairmap);
 use Time::Piece;
 use Time::Seconds;
 use Date::Parse;
+use Path::Tiny;
 
 use FindBin qw($RealBin $Script);
 
@@ -28,21 +29,21 @@ BEGIN {
         ['top-starred|ts=s', 'Display a user\'s top 3 starred projects descending'],
         ['compare-repos|c=s', 'List common repos between authed user and some other user'],
         [],
-        ['verbose|v+', 'Verbose level (-vv -vvv etc for more)'],
+        ['verbose|v+', 'Verbose level (-vv or -vvv for more)'],
         ['help|h', 'Print usage info', {shortcircuit => 1}],
     );
     print(join "\n", $usage->text, "\n", 'GitHub token is read from { \'githubToken\': foo } ./config.json'), exit if $::opt{help} || !%::opt || %::opt == 1 && $::opt{'verbose'};
 }
 use Smart::Comments map {'###' . '#' x $_} 0..($::opt{verbose}//0); # just a bit of fun :)
 
-chdir($RealBin) || croak "Failed to chdir($RealBin): $!"; 
+#chdir($RealBin) || croak "Failed to chdir($RealBin): $!"; # 
 
 my $json = JSON()->new;
 my $cl = REST::Client->new;
 
 my @conf_keys = qw(githubToken);
 my \%conf = try {
-    $json->decode(scalar read_file('config.json'));
+    $json->decode(scalar read_file(path($RealBin)->child('config.json')));
 } catch {
     croak "Failed to read config: $_";
 };
@@ -67,7 +68,6 @@ my $githubUser = try {
 if( $::opt{'auth'} ){
     say "Successful auth for user '$githubUser'";
 }
-
 
 # There are a couple of ways this could be done, I was thinking to get all commits and then compare the language
 # but there doesn't seem to be a way to retrieve this
