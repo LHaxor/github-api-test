@@ -17,7 +17,7 @@ use Date::Parse;
 
 use FindBin qw($RealBin $Script);
 
-my $IS_INTERACTIVE = -t STDIN && (-t STDOUT || !(-f STDOUT || -c STDOUT)) ;
+my $IS_INTERACTIVE = -t STDIN && (-t STDOUT || !(-f STDOUT || -c STDOUT || -p STDOUT)) ;
 
 BEGIN {
     # probably would make the args mutually exclusive in a real util
@@ -83,9 +83,9 @@ if( $::opt{'top_language'} ){
     for( @top[0..2] ){ 
         next unless $_;
         if( $IS_INTERACTIVE ) {
-            printf "%s: %.1f%%\n", $_, ($stats{$_} / $totalsize * 100);
+            printf "%s %.1f%%\n", $_, ($stats{$_} / $totalsize * 100);
         }else{
-            say
+            say;
         }
     }
 }
@@ -104,7 +104,11 @@ if( $::opt{'list_stale'} ){
         my $then = Time::Piece->new(str2time($commit->{'commit'}{'committer'}{'date'}));
         my $dif = Time::Seconds->new($now - $then);
         if( $dif->months > 3 ){ # going by github doc definition of stale
-            say $name;
+            if( $IS_INTERACTIVE ){
+                printf "%s is stale by %.2f months\n", $name, $dif->months;
+            }else{
+                say $name;
+            }
         }
     }
 }
