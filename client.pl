@@ -25,8 +25,9 @@ BEGIN {
         ['compare-repos|cr:s', 'List common repos between authed user and some other user'],
         [],
         ['verbose|v+', 'Verbose level (-vv -vvv etc for more)'],
-        ['help|h|?', {shortcircuit => 1}],
+        ['help|h', 'Print usage info', {shortcircuit => 1}],
     );
+    print($usage->text), exit if $::opt{help};
     $::opt{verbose} = 3; # TODO delete this line when done testing
 }
 use Smart::Comments map {'###' . '#' x $_} 0..($::opt{verbose}//0); # just a bit of fun :)
