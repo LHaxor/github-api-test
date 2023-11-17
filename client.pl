@@ -9,7 +9,6 @@ use Getopt::Long::Descriptive;
 use File::Slurp;
 use JSON::MaybeXS;
 use REST::Client;
-use DDS;
 use List::Util qw(pairmap);
 use Time::Piece;
 use Time::Seconds;
@@ -24,15 +23,15 @@ BEGIN {
     our (\%opt, $usage) = describe_options(
         "$Script %o",
         ['auth|a', 'Test authentication'],
-        ['top-language|tl', 'Display most used language'],
-        ['list-stale|ls=s', 'List stale branches for a repo'],
+        ['top-language|l', 'Display most used language'],
+        ['stale|s=s', 'List stale branches for a repo'],
         ['top-starred|ts=s', 'Display a user\'s top 3 starred projects descending'],
         ['compare-repos|c=s', 'List common repos between authed user and some other user'],
         [],
         ['verbose|v+', 'Verbose level (-vv -vvv etc for more)'],
         ['help|h', 'Print usage info', {shortcircuit => 1}],
     );
-    print($usage->text), exit if $::opt{help};
+    print($usage->text), exit if $::opt{help} || !%::opt || %::opt == 1 && $::opt{'verbose'};
 }
 use Smart::Comments map {'###' . '#' x $_} 0..($::opt{verbose}//0); # just a bit of fun :)
 
@@ -91,7 +90,7 @@ if( $::opt{'top_language'} ){
     }
 }
 
-if( $::opt{'list_stale'} ){
+if( $::opt{'stale'} ){
     # superfluous input validation
     croak "Invalid repo name" if $::opt{'list_stale'} !~ m{[\w.-]/[\w.-]}; 
 
@@ -101,7 +100,7 @@ if( $::opt{'list_stale'} ){
 
     my $now = Time::Piece->localtime;
     for my($name, $ref) ( %branches ){
-        my $commit = GET('/repos/', $::opt{'list_stale'}, "/commits/$ref");
+        my $commit = GET('/repos/', $::opt{'stale'}, "/commits/$ref");
         my $then = Time::Piece->new(str2time($commit->{'commit'}{'committer'}{'date'}));
         my $dif = Time::Seconds->new($now - $then);
         if( $dif->months > 3 ){ # going by github doc definition of stale
