@@ -70,8 +70,8 @@ if( $::opt{'auth'} ){
 }
 
 
-# There are a couple of ways this could be done, most accurate would probable be to compare
-# all of the user's commits by language, but that would take a while so I did this instead
+# There are a couple of ways this could be done, I was thinking to get all commits and then compare the language
+# but there doesn't seem to be a way to retrieve this
 if( $::opt{'top_language'} ){
     my @repos = map {$_->{full_name}} GET_all('/user/repos');
 
@@ -120,10 +120,9 @@ if( $::opt{'top_starred'} ){
 }
 
 if( $::opt{'compare_repos'} ){
-    Dump GET_all('/user/repos');
-    my @user_repos = map {$_->{'full_name'}} GET_all('/user/repos');
+    my @user_repos = map {$_->{'full_name'}} GET_all('/user/repos?type=all');
+    my %other_repos = map {$_->{'full_name'}, 1} GET_all('/users/', $::opt{'compare_repos'}, '/repos?type=all');
 
-    my %other_repos = map {$_->{'full_name'}, 1} GET_all('/users/', $::opt{'compare_repos'}, '/repos');
     my @common = grep {exists $other_repos{$_}} @user_repos;
     say for @common;
 }
@@ -180,13 +179,3 @@ sub checkResponse( $res ){
     
     return $decoded;
 }
-
-
-
-__DATA__
-
-    Authenticates with the server using a personal access token
-    Display the authenticated user's most used language
-    For a given repo, list all the stale branches
-    Display a user's top 3 most starred projects in order of most to least stars with the numbers of stars for each project
-    Display all the repositories that both the authenticated user and some other user have in common
