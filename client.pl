@@ -21,7 +21,7 @@ use FindBin qw($RealBin $Script);
 BEGIN {
     # probably would make the args mutually exclusive in a real util
     our (\%opt, $usage) = describe_options(
-        "%c [-v | --verbose] [[-a | --auth] | [-l | --top-language] | [--stale=<repository>] | [--top-starred=<user>] | [--compare-repos=<user>]]",
+        "%c [-v | --verbose] [-a | --auth] [-l | --top-language] [--stale=<repository>] [--top-starred=<user>] [--compare-repos=<user>]",
         ['auth|a', 'Test authentication'],
         ['top-language|l', 'Display most used language'],
         ['stale|s=s', 'List stale branches for a repo'], # username/repo
