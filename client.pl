@@ -21,10 +21,10 @@ use FindBin qw($RealBin $Script);
 BEGIN {
     # probably would make the args mutually exclusive in a real util
     our (\%opt, $usage) = describe_options(
-        "$Script %o",
+        "%c [-v] [-a] [-l] [--stale=<repository>] [--top-starred=<user>] [--compare-repos=<user>]",
         ['auth|a', 'Test authentication'],
         ['top-language|l', 'Display most used language'],
-        ['stale|s=s', 'List stale branches for a repo'],
+        ['stale|s=s', 'List stale branches for a repo'], # username/repo
         ['top-starred|ts=s', 'Display a user\'s top 3 starred projects descending'],
         ['compare-repos|c=s', 'List common repos between authed user and some other user'],
         [],
@@ -96,8 +96,6 @@ if( $::opt{'stale'} ){
 
     my %branches = map {$_->{'name'}, $_->{'commit'}{'sha'}} GET_all('/repos/', $::opt{'list_stale'}, '/branches');
     
-    Dump %branches;
-
     my $now = Time::Piece->localtime;
     for my($name, $ref) ( %branches ){
         my $commit = GET('/repos/', $::opt{'stale'}, "/commits/$ref");
