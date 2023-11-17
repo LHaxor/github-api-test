@@ -122,6 +122,7 @@ if( $::opt{'top_starred'} ){
 if( $::opt{'compare_repos'} ){
     Dump GET_all('/user/repos');
     my @user_repos = map {$_->{'full_name'}} GET_all('/user/repos');
+
     my %other_repos = map {$_->{'full_name'}, 1} GET_all('/users/', $::opt{'compare_repos'}, '/repos');
     my @common = grep {exists $other_repos{$_}} @user_repos;
     say for @common;
