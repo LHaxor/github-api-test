@@ -33,7 +33,6 @@ BEGIN {
         ['help|h', 'Print usage info', {shortcircuit => 1}],
     );
     print($usage->text), exit if $::opt{help};
-    $::opt{verbose} = 3; # TODO delete this line when done testing
 }
 use Smart::Comments map {'###' . '#' x $_} 0..($::opt{verbose}//0); # just a bit of fun :)
 
@@ -64,6 +63,7 @@ my $githubUser = try {
     say $STDERR 'Invalid auth token' if /403/;
     croak $_;
 };
+#### Authenticated as: $githubUser
 
 if( $::opt{'auth'} ){
     say "Successful auth for user '$githubUser'";
@@ -145,7 +145,7 @@ sub GET_all {
     my $page;
 
     while( my $res = GET($path, $sep, 'per_page=100', $page++ ? "&page=$page" : "" )){
-        #### got page: $page
+        ##### got page: $page
         push @all, $res->@*;
         last unless ($cl->responseHeader('Link')//'') =~ /rel="next"/;
     }
