@@ -11,8 +11,13 @@ use JSON::MaybeXS;
 use REST::Client;
 use DDS;
 use List::Util qw(pairmap);
+use Time::Piece;
+use Time::Seconds;
+use Date::Parse;
 
 use FindBin qw($RealBin $Script);
+
+my $IS_INTERACTIVE = -t STDIN && (-t STDOUT || !(-f STDOUT || -c STDOUT)) ;
 
 BEGIN {
     # probably would make the args mutually exclusive in a real util
@@ -45,7 +50,7 @@ my \%conf = try {
 };
 # no reason to check like this for only 1 key but i left it in for demonstration
 ###### read config: %conf;
-map {die "$_ missing from config" unless $conf{$_}} @conf_keys;
+map {croak "$_ missing from config" unless $conf{$_}} @conf_keys;
 
 $cl->setFollow(1); # for auth/redirect
 $cl->setHost('https://api.github.com');
@@ -70,25 +75,47 @@ if( $::opt{'top_language'} ){
     
     my $totalsize;
     my %stats;
-    pairmap {$stats{$a} += $b; $totalsize += $b} GET("/repos/$_/languages")->%* for @repos;
+    pairmap {$stats{$a} += $b; $totalsize += $b} GET("/repos/$_/languages?affiliation=owner")->%* for @repos;
     
     my @top = sort {$stats{$b} <=> $stats{$a}} keys %stats;
-    say "Top languages for $githubUser:";
+    ### Top languages for: $githubUser
+
     for( @top[0..2] ){ 
         next unless $_;
-        printf "%s: %.1f%%\n", $_, ($stats{$_} / $totalsize * 100);
+        if( $IS_INTERACTIVE ) {
+            printf "%s: %.1f%%\n", $_, ($stats{$_} / $totalsize * 100);
+        }else{
+            say
+        }
     }
 }
 
 if( $::opt{'list_stale'} ){
+    # superfluous input validation
+    croak "Invalid repo name" if $::opt{'list_stale'} !~ m{[\w.-]/[\w.-]}; 
+
+    my %branches = map {$_->{'name'}, $_->{'commit'}{'sha'}} GET('/repos/', $::opt{'list_stale'}, '/branches')->@*;
     
+    Dump %branches;
+
+    my $now = Time::Piece->localtime;
+    for my($name, $ref) ( %branches ){
+        my $commit = GET('/repos/', $::opt{'list_stale'}, "/commits/$ref");
+        my $then = Time::Piece->new(str2time($commit->{'commit'}{'committer'}{'date'}));
+        my $dif = Time::Seconds->new($now - $then);
+        if( $dif->months > 3 ){ # going by github doc definition of stale
+            say $name;
+        }
+    }
 }
 
 #checkResponse($res);
 
 sub GET {
-    ##### GET: $_[0]
-    return checkResponse($cl->GET(@_));
+    my $path = join '', @_; # var needed for the verbose print
+    ##### GET: $path
+    # can just join it because no extra headers are needed
+    return checkResponse($cl->GET(join '', $path));
 }
 
 sub checkResponse( $res ){
@@ -104,17 +131,18 @@ sub checkResponse( $res ){
     my $decoded = try {
         $json->decode($res->responseContent);
     } catch {
-        croak "Malformed response: '", $res->responseContent, "'", unless $code eq '204';
+        croak "Malformed response: '", $res->responseContent, "'", unless $code eq '204'; # very unlikely except 204
     };
 
-    # it would be easier to just die with code + message but i wanted to demonstrate 'error handling'
+    # it would be easier to just die with code + message but extra for demo
     if( $code !~ /^2/ ){
         say $STDERR $decoded->{message};
         croak $complaints{$code}//('Request failed with code ', $code, "'");
     } elsif( $code ne '200' ){
         say $STDERR $decoded->{message};
-        croak $complaints{$code}//('Something happened with code ', $code); # unlikely except 204
+        croak $complaints{$code}//('Something happened with code ', $code); # somewhat unlikely except 204
     }
+    # 
     
     return $decoded;
 }
