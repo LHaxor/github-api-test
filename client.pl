@@ -31,7 +31,7 @@ BEGIN {
         ['verbose|v+', 'Verbose level (-vv -vvv etc for more)'],
         ['help|h', 'Print usage info', {shortcircuit => 1}],
     );
-    print($usage->text), exit if $::opt{help} || !%::opt || %::opt == 1 && $::opt{'verbose'};
+    print(join "\n", $usage->text, "\n", 'GitHub token is read from { \'githubToken\': foo } ./config.json'), exit if $::opt{help} || !%::opt || %::opt == 1 && $::opt{'verbose'};
 }
 use Smart::Comments map {'###' . '#' x $_} 0..($::opt{verbose}//0); # just a bit of fun :)
 
