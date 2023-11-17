@@ -26,8 +26,8 @@ BEGIN {
         ['auth|a', 'Test authentication'],
         ['top-language|tl', 'Display most used language'],
         ['list-stale|ls:s', 'List stale branches for a repo'],
-        ['top-starred|ts:s', 'Display user\'s top 3 starred projects descending'],
-        ['compare-repos|cr:s', 'List common repos between authed user and some other user'],
+        ['top-starred|ts:s', 'Display a user\'s top 3 starred projects descending'],
+        ['compare-repos|c:s', 'List common repos between authed user and some other user'],
         [],
         ['verbose|v+', 'Verbose level (-vv -vvv etc for more)'],
         ['help|h', 'Print usage info', {shortcircuit => 1}],
@@ -48,7 +48,7 @@ my \%conf = try {
 } catch {
     croak "Failed to read config: $_";
 };
-# no reason to check like this for only 1 key but i left it in for demonstration
+# No reason to check like this for only 1 key but i left it in for demonstration
 ###### read config: %conf;
 map {croak "$_ missing from config" unless $conf{$_}} @conf_keys;
 
@@ -57,7 +57,7 @@ $cl->setHost('https://api.github.com');
 $cl->addHeader('Authorization', "Bearer $conf{githubToken}");
 $cl->addHeader('Accept', 'application/vnd.github+json');
 
-# retrieve username beforehand to see if 403 would be invalid token vs no access to resource
+# Retrieve username beforehand to see if 403 would be invalid token vs no access to resource
 my $githubUser = try {
     GET('/user')->{login};
 } catch {
@@ -69,8 +69,12 @@ if( $::opt{'auth'} ){
     say "Successful auth for user '$githubUser'";
 }
 
+
+# There are a couple of ways this could be done, most accurate would probable be to compare
+# all of the user's commits by language, but that would take a while so I did this instead
 if( $::opt{'top_language'} ){
-    my @repos = map {$_->{full_name}} GET('/user/repos')->@*;
+    my @repos = map {$_->{full_name}} GET_all('/user/repos');
+
     #### checking top langs for repos: @repos
     
     my $totalsize;
@@ -94,7 +98,7 @@ if( $::opt{'list_stale'} ){
     # superfluous input validation
     croak "Invalid repo name" if $::opt{'list_stale'} !~ m{[\w.-]/[\w.-]}; 
 
-    my %branches = map {$_->{'name'}, $_->{'commit'}{'sha'}} GET('/repos/', $::opt{'list_stale'}, '/branches')->@*;
+    my %branches = map {$_->{'name'}, $_->{'commit'}{'sha'}} GET_all('/repos/', $::opt{'list_stale'}, '/branches');
     
     Dump %branches;
 
@@ -104,12 +108,17 @@ if( $::opt{'list_stale'} ){
         my $then = Time::Piece->new(str2time($commit->{'commit'}{'committer'}{'date'}));
         my $dif = Time::Seconds->new($now - $then);
         if( $dif->months > 3 ){ # going by github doc definition of stale
-            if( $IS_INTERACTIVE ){
-                printf "%s is stale by %.2f months\n", $name, $dif->months;
-            }else{
-                say $name;
-            }
+            #printf "%s is stale by %.2f months\n", $name, $dif->months;
+            say $name;
         }
+    }
+}
+
+if( $::opt{'top_starred'} ){
+    #my %repos = map {$_->@[qw(full_name stargazers_count)]} ;
+    my @repos = sort {$b->{stargazers_count} <=> $a->{stargazers_count}} GET_all('/users/',$::opt{top_starred} , '/repos');
+    for( @repos ){
+        printf "%s %d\n", $_->@{qw(name stargazers_count)};
     }
 }
 
@@ -119,12 +128,27 @@ sub GET {
     my $path = join '', @_; # var needed for the verbose print
     ##### GET: $path
     # can just join it because no extra headers are needed
+
     return checkResponse($cl->GET(join '', $path));
+}
+
+sub GET_all {
+    my $path = join '', @_;
+    ##### GET paginated: $path
+    my $sep = ($path =~ /\?/) ? "&" : "?";
+    my @all;
+    my $page;
+
+    while( my $res = GET($path, $sep, 'per_page=100', $page++ ? "&page=$page" : "" )){
+        ##### page: $page
+        push @all, $res->@*;
+        last unless ($cl->responseHeader('Link')//'') =~ /rel="next"/;
+    }
+    return @all;
 }
 
 sub checkResponse( $res ){
     ##### response code: $res->responseCode
-    ###### content: $res->responseContent
     state %complaints = (
         403 => 'No permission to access that resource',
         204 => 'Response empty', 
@@ -135,10 +159,10 @@ sub checkResponse( $res ){
     my $decoded = try {
         $json->decode($res->responseContent);
     } catch {
-        croak "Malformed response: '", $res->responseContent, "'", unless $code eq '204'; # very unlikely except 204
+        croak "Malformed response: '", $res->responseContent, "'" unless $code eq '204'; # very unlikely except 204
     };
 
-    # it would be easier to just die with code + message but extra for demo
+    # it would be easier to just die with code + message but extra for fun
     if( $code !~ /^2/ ){
         say $STDERR $decoded->{message};
         croak $complaints{$code}//('Request failed with code ', $code, "'");
@@ -146,7 +170,7 @@ sub checkResponse( $res ){
         say $STDERR $decoded->{message};
         croak $complaints{$code}//('Something happened with code ', $code); # somewhat unlikely except 204
     }
-    # 
+    # not sure if github ever gives 204 actually
     
     return $decoded;
 }
